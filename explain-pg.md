@@ -378,7 +378,126 @@ explain select a.id, b.id, a.data from tb1 a, tb2 b where  a.id < 10;
 
 
 #### bitmap 扫描
+##### 例1.
+```sql
+EXPLAIN SELECT * FROM tenk1 WHERE unique1 < 100;
+/*
+
+                                  QUERY PLAN
+------------------------------------------------------------------------------
+ Bitmap Heap Scan on tenk1  (cost=5.07..229.20 rows=101 width=244)
+   Recheck Cond: (unique1 < 100)
+   ->  Bitmap Index Scan on tenk1_unique1  (cost=0.00..5.04 rows=101 width=0)
+         Index Cond: (unique1 < 100)
+*/
+
+-----------------名词解释----------------
+/*
+1. Bitmap: 位图 （优势是使用内存较小，而且对数据的随机读变为顺序读， 劣势是多一步形成位图的过程）
+2. Recheck: 复核条件（位图扫描记录的是页，所以需要复核条件）
+*/
+```
+##### 例2.
+```sql
+EXPLAIN SELECT * FROM tenk1 WHERE unique1 < 100 AND unique2 > 9000;
+/*
+
+                                     QUERY PLAN
+-------------------------------------------------------------------------------------
+ Bitmap Heap Scan on tenk1  (cost=25.08..60.21 rows=10 width=244)
+   Recheck Cond: ((unique1 < 100) AND (unique2 > 9000))
+   ->  BitmapAnd  (cost=25.08..25.08 rows=10 width=0)
+         ->  Bitmap Index Scan on tenk1_unique1  (cost=0.00..5.04 rows=101 width=0)
+               Index Cond: (unique1 < 100)
+         ->  Bitmap Index Scan on tenk1_unique2  (cost=0.00..19.78 rows=999 width=0)
+               Index Cond: (unique2 > 9000)
+*/
+
+-----------------名词解释----------------
+/*
+1. BitmapAnd: 位图与（可以利用多个索引）
+*/
+```
+##### 例3. 
+```sql
+EXPLAIN ANALYZE SELECT *
+FROM tenk1 t1, tenk2 t2
+WHERE t1.unique1 < 100 AND t1.unique2 = t2.unique2 ORDER BY t1.fivethous;
+/*
+
+                                                                 QUERY PLAN
+--------------------------------------------------------------------------------------------------------------------------------------------
+ Sort  (cost=717.34..717.59 rows=101 width=488) (actual time=7.761..7.774 rows=100 loops=1)
+   Sort Key: t1.fivethous
+   Sort Method: quicksort  Memory: 77kB
+   ->  Hash Join  (cost=230.47..713.98 rows=101 width=488) (actual time=0.711..7.427 rows=100 loops=1)
+         Hash Cond: (t2.unique2 = t1.unique2)
+         ->  Seq Scan on tenk2 t2  (cost=0.00..445.00 rows=10000 width=244) (actual time=0.007..2.583 rows=10000 loops=1)
+         ->  Hash  (cost=229.20..229.20 rows=101 width=244) (actual time=0.659..0.659 rows=100 loops=1)
+               Buckets: 1024  Batches: 1  Memory Usage: 28kB
+               ->  Bitmap Heap Scan on tenk1 t1  (cost=5.07..229.20 rows=101 width=244) (actual time=0.080..0.526 rows=100 loops=1)
+                     Recheck Cond: (unique1 < 100)
+                     ->  Bitmap Index Scan on tenk1_unique1  (cost=0.00..5.04 rows=101 width=0) (actual time=0.049..0.049 rows=100 loops=1)
+                           Index Cond: (unique1 < 100)
+ Planning time: 0.194 ms
+ Execution time: 8.008 ms
+ */
+```
 
 #### Append
+通常出现在分区表中
+```sql
+-- 1. 建表
+drop table if exists tb4;
+create table tb4(
+    id      int primary key, 
+    data    int
+)partition by range (id);
+create table tb4_0_100 partition of tb4 for values from (0) to (100);
+create table tb4_100_200 partition of tb4 for values from (100) to (200);
+create table tb4_200_300 partition of tb4 for values from (200) to (300);
+-- 2. 插入数据
+insert into tb4 select generate_series(1, 299), generate_series(1, 299);
+-- 3. 查看建好的表
+\d+ tb4
 
+explain select * from tb4 where id > 90 and id < 110;
+/*
+                                      QUERY PLAN                                      
+--------------------------------------------------------------------------------------
+ Append  (cost=4.27..30.04 rows=22 width=8)
+   ->  Bitmap Heap Scan on tb4_0_100  (cost=4.27..14.97 rows=11 width=8)
+         Recheck Cond: ((id > 90) AND (id < 110))
+         ->  Bitmap Index Scan on tb4_0_100_pkey  (cost=0.00..4.27 rows=11 width=0)
+               Index Cond: ((id > 90) AND (id < 110))
+   ->  Bitmap Heap Scan on tb4_100_200  (cost=4.27..14.97 rows=11 width=8)
+         Recheck Cond: ((id > 90) AND (id < 110))
+         ->  Bitmap Index Scan on tb4_100_200_pkey  (cost=0.00..4.27 rows=11 width=0)
+               Index Cond: ((id > 90) AND (id < 110))
+(9 rows)
+*/
+
+-- 4. 手动触发数据的抽样统计， 用于计划器生成更准确的执行计划
+analyze;
+
+explain select * from tb4 where id = 90 or id = 110;
+
+/*
+                           QUERY PLAN                            
+-----------------------------------------------------------------
+ Append  (cost=0.00..5.00 rows=4 width=8)
+   ->  Seq Scan on tb4_0_100  (cost=0.00..2.48 rows=2 width=8)
+         Filter: ((id = 90) OR (id = 110))
+   ->  Seq Scan on tb4_100_200  (cost=0.00..2.50 rows=2 width=8)
+         Filter: ((id = 90) OR (id = 110))
+(5 rows)
+
+*/
+```
 #### 实例分析
+
+#### 参考资料
+- [PG 官方文档](https://www.postgresql.org/docs/12/using-explain.html)
+- PostgreSQL修炼之道：从小工到专家 (作者：唐成)
+- PostgreSQL即学即用 第3版 数据库 （瑞金娜 奥贝 等 著，丁奇鹏 译 ）
+- PostgreSQL指南内幕探索 (作者:(日)Hironobu Suzuki(铃木启修))
