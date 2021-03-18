@@ -180,7 +180,8 @@ explain select sum(data) from tb1 group by id;
 
 ```
 
-### 分组聚合
+#### 分组聚合
+
 ```sql
 explain select sum(data) from tb1 where id < 4000 group by id;
 /*
@@ -494,6 +495,40 @@ explain select * from tb4 where id = 90 or id = 110;
 
 */
 ```
+#### 并行查询
+
+```sql
+explain analyze select sum(first_visit_at) from vehicle_file;
+/*
+                                                                      QUERY PLAN                                                                      
+------------------------------------------------------------------------------------------------------------------------------------------------------
+ Finalize Aggregate  (cost=2474093.17..2474093.18 rows=1 width=32) (actual time=4213.735..4213.735 rows=1 loops=1)
+   ->  Gather  (cost=2474092.31..2474093.12 rows=8 width=32) (actual time=4213.609..4446.362 rows=3 loops=1)
+         Workers Planned: 8
+         Workers Launched: 2
+         ->  Partial Aggregate  (cost=2473092.31..2473092.32 rows=1 width=32) (actual time=4207.603..4207.604 rows=1 loops=3)
+               ->  Parallel Seq Scan on vehicle_file  (cost=0.00..2465507.25 rows=3034025 width=8) (actual time=0.016..3439.783 rows=8090733 loops=3)
+ Planning Time: 4.114 ms
+ Execution Time: 4446.448 ms
+(8 rows)
+*/
+
+-----------------名词解释----------------
+/*
+1. Gather: 把所有结果收集起来
+2. Partial Aggregate: 部分聚合
+3. Finalize Aggregate: 最终聚合
+4. Parrallel Seq Scan: 并行顺序扫描
+*/
+
+Time: 4559.394 ms (00:04.559)
+
+```
+
+
+
+
+
 #### 实例分析
 
 #### 参考资料
