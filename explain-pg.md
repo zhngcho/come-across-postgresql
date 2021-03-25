@@ -306,8 +306,8 @@ where a.data = b.data;
 /*
 1. Hash Join: 哈希连接
 2. Hash Cond: 哈希连接条件
-3. Seq Scan ...: 顺序扫描 tb2 (外表)
-4. Hash: 顺序扫描 tb1 并在内存建立 hash 表（内表）
+3. Seq Scan ...: 顺序扫描 tb1 (外表)
+4. Hash: 顺序扫描 tb2 并在内存建立 hash 表（内表）
 5. 外表在上，内表在下
 */
 
