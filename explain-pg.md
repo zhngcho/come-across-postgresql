@@ -1,6 +1,9 @@
 ### 看懂 postgres 的执行计划
+
 [toc]
+
 #### 环境准备
+
 - ubuntu 20.04.1
 - 安装数据库
     ```bash
@@ -18,23 +21,30 @@
     ```
 
 #### 全表扫描
+
 ##### 例1. 无索引情况下全表扫描
+
 ```sql
 -- 1. 建表
 drop table if exists tb1;
-create table tb1(
-    id      int primary key, 
-    data    int
+create table tb1
+(
+    id   int primary key,
+    data int
 );
 -- 2. 插入 10k 数据
-insert into tb1 select generate_series(1, 10000), generate_series(1, 10000);
+insert into tb1
+select generate_series(1, 10000), generate_series(1, 10000);
 -- 3. 手动触发数据的抽样统计， 用于计划器生成更准确的执行计划
 analyze;
 -- 4. 查看建好的表
 \d+ tb1
 
 ------------------查看执行计划-----------------
-explain select * from tb1 where data < 8000;
+explain
+select *
+from tb1
+where data < 8000;
 /*
                     QUERY PLAN                       
 --------------------------------------------------------
@@ -58,9 +68,14 @@ Seq Scan on tb1  (cost=0.00..170.00 rows=7999 width=8)
 */
 
 ```
+
 ##### 例2. 有索引的情况下全表扫描
+
 ```sql
-explain select * from tb1 where id < 8000;
+explain
+select *
+from tb1
+where id < 8000;
 /*
                        QUERY PLAN                       
 --------------------------------------------------------
@@ -74,9 +89,14 @@ explain select * from tb1 where id < 8000;
 ```
 
 #### 索引扫描
+
 ##### 例
+
 ```sql
-explain select * from tb1 where id < 4000;
+explain
+select *
+from tb1
+where id < 4000;
 /*
                                QUERY PLAN                                
 -------------------------------------------------------------------------
@@ -95,9 +115,14 @@ explain select * from tb1 where id < 4000;
 ```
 
 #### 仅索引扫描
+
 ##### 例
+
 ```sql
-explain select id from tb1 where id < 4000;
+explain
+select id
+from tb1
+where id < 4000;
 /*
                                   QUERY PLAN                                  
 ------------------------------------------------------------------------------
@@ -113,10 +138,55 @@ explain select id from tb1 where id < 4000;
 */
 ```
 
+```postgresql
+explain analyze
+select id
+from tb1
+where id < 4000;
+/*
+                                                        QUERY PLAN                                                         
+---------------------------------------------------------------------------------------------------------------------------
+ Index Only Scan using tb1_pkey on tb1  (cost=0.29..139.27 rows=3999 width=4) (actual time=0.055..1.620 rows=3999 loops=1)
+   Index Cond: (id < 4000)
+   Heap Fetches: 3999
+ Planning Time: 0.159 ms
+ Execution Time: 1.910 ms
+(5 rows)
+*/
+
+-----------------名词解释----------------
+/*
+1. Heap Fetches: 与 MVCC 机制相关，当VM中的信息表明某页中可能存在不可见信息时，需要访问数据表中的可见信息
+*/
+```
+
 #### 排序
+
 ##### 例 1
+
 ```sql
-explain select * from tb2 where id < 200 order by id;
+-- 1. 建表
+drop table if exists tb2;
+create table tb2
+(
+    id   int primary key,
+    data int
+);
+-- 2. 插入 100 数据
+insert into tb2
+select generate_series(1, 100), generate_series(1, 100);
+-- 3. 手动触发数据的抽样统计， 用于计划器生成更准确的执行计划
+analyze;
+-- 4. 查看建好的表
+\d+ tb2
+```
+
+```sql
+explain
+select *
+from tb2
+where id < 200
+order by id;
 /*
                         QUERY PLAN                         
 -----------------------------------------------------------
@@ -132,9 +202,15 @@ explain select * from tb2 where id < 200 order by id;
 1. Sort: 排序操作，内存够用则快排，否则文件归并排序, 通常在 order by 或者 merge join 中出现
 */
 ```
+
 ##### 例 2
+
 ```sql
-explain analyze select * from tb2 where id < 100 order by id;
+explain analyze
+select *
+from tb2
+where id < 100
+order by id;
 /*
                                              QUERY PLAN                                              
 -----------------------------------------------------------------------------------------------------
@@ -165,9 +241,14 @@ explain analyze select * from tb2 where id < 100 order by id;
 ```
 
 #### hash 聚合
+
 ##### 例
+
 ```sql
-explain select sum(data) from tb1 group by id;
+explain
+select sum(data)
+from tb1
+group by id;
 /*
                           QUERY PLAN                           
 ---------------------------------------------------------------
@@ -183,7 +264,11 @@ explain select sum(data) from tb1 group by id;
 #### 分组聚合
 
 ```sql
-explain select sum(data) from tb1 where id < 4000 group by id;
+explain
+select sum(data)
+from tb1
+where id < 4000
+group by id;
 /*
                                   QUERY PLAN                                   
 -------------------------------------------------------------------------------
@@ -197,23 +282,15 @@ explain select sum(data) from tb1 where id < 4000 group by id;
 ```
 
 #### hash 连接
-```sql
--- 1. 建表
-drop table if exists tb2;
-create table tb2(
-    id      int primary key, 
-    data    int
-);
--- 2. 插入 100 数据
-insert into tb2 select generate_series(1, 100), generate_series(1, 100);
--- 3. 手动触发数据的抽样统计， 用于计划器生成更准确的执行计划
-analyze;
--- 4. 查看建好的表
-\d+ tb2
-```
+
 ##### 例 1
+
 ```sql
-explain select a.id, b.id, a.data from tb1 a, tb2 b where a.data = b.data;
+explain
+select a.id, b.id, a.data
+from tb1 a,
+     tb2 b
+where a.data = b.data;
 /*
                             QUERY PLAN                             
 -------------------------------------------------------------------
@@ -235,9 +312,16 @@ explain select a.id, b.id, a.data from tb1 a, tb2 b where a.data = b.data;
 */
 
 ```
+
 ##### 例 2
+
 ```sql
-explain select a.id, b.id, a.data from tb1 a, tb2 b where a.data = b.data and a.id < 100;
+explain
+select a.id, b.id, a.data
+from tb1 a,
+     tb2 b
+where a.data = b.data
+  and a.id < 100;
 /*
                                   QUERY PLAN                                  
 ------------------------------------------------------------------------------
@@ -252,8 +336,14 @@ explain select a.id, b.id, a.data from tb1 a, tb2 b where a.data = b.data and a.
 ```
 
 ##### 例 3
+
 ```sql
-explain analyze select a.id, b.id, a.data from tb1 a, tb2 b where a.data = b.data and a.id < 100;
+explain analyze
+select a.id, b.id, a.data
+from tb1 a,
+     tb2 b
+where a.data = b.data
+  and a.id < 100;
 /*
                                                        QUERY PLAN                                                        
 -------------------------------------------------------------------------------------------------------------------------
@@ -278,9 +368,16 @@ explain analyze select a.id, b.id, a.data from tb1 a, tb2 b where a.data = b.dat
 ```
 
 #### merge 连接
+
 ##### 例
+
 ```sql
-explain select a.id, b.id, a.data from tb1 a, tb2 b where a.id = b.id and b.id < 10;
+explain
+select a.id, b.id, a.data
+from tb1 a,
+     tb2 b
+where a.id = b.id
+  and b.id < 10;
 /*
                                     QUERY PLAN                                    
 ----------------------------------------------------------------------------------
@@ -305,23 +402,31 @@ explain select a.id, b.id, a.data from tb1 a, tb2 b where a.id = b.id and b.id <
 ```
 
 #### nested loop（嵌套循环） 连接
+
 ```sql
 -- 1. 建表
 drop table if exists tb3;
-create table tb3(
-    id      int primary key, 
-    data    int
+create table tb3
+(
+    id   int primary key,
+    data int
 );
 -- 2. 插入 10 数据
-insert into tb3 select generate_series(1, 10), generate_series(1, 10);
+insert into tb3
+select generate_series(1, 10), generate_series(1, 10);
 -- 3. 手动触发数据的抽样统计， 用于计划器生成更准确的执行计划
 analyze;
 -- 4. 查看建好的表
 \d+ tb3
 ```
+
 ##### 例 1 物化顺序扫描嵌套循环连接
+
 ```sql
-explain select a.id, b.id, a.data from tb1 a, tb2 b;
+explain
+select a.id, b.id, a.data
+from tb1 a,
+     tb2 b;
 /*
                             QUERY PLAN                             
 -------------------------------------------------------------------
@@ -338,9 +443,14 @@ explain select a.id, b.id, a.data from tb1 a, tb2 b;
 2. Materialize: 物化内表
 */
 ```
+
 ##### 例 2 嵌套循环连接的循环次数分析
+
 ```sql
-explain analyze select a.id, b.id, a.data from tb1 a, tb2 b;
+explain analyze
+select a.id, b.id, a.data
+from tb1 a,
+     tb2 b;
 /*
                                                   QUERY PLAN                                                   
 ---------------------------------------------------------------------------------------------------------------
@@ -362,8 +472,13 @@ explain analyze select a.id, b.id, a.data from tb1 a, tb2 b;
 ```
 
 ##### 例 3 物化索引嵌套循环连接
+
 ```sql
-explain select a.id, b.id, a.data from tb1 a, tb2 b where  a.id < 10;
+explain
+select a.id, b.id, a.data
+from tb1 a,
+     tb2 b
+where a.id < 10;
 /*
                                     QUERY PLAN                                    
 ----------------------------------------------------------------------------------
@@ -377,11 +492,15 @@ explain select a.id, b.id, a.data from tb1 a, tb2 b where  a.id < 10;
 
 ```
 
-
 #### bitmap 扫描
+
 ##### 例1.
+
 ```sql
-EXPLAIN SELECT * FROM tenk1 WHERE unique1 < 100;
+EXPLAIN
+SELECT *
+FROM tenk1
+WHERE unique1 < 100;
 /*
 
                                   QUERY PLAN
@@ -398,9 +517,15 @@ EXPLAIN SELECT * FROM tenk1 WHERE unique1 < 100;
 2. Recheck: 复核条件（位图扫描记录的是页，所以需要复核条件）
 */
 ```
+
 ##### 例2.
+
 ```sql
-EXPLAIN SELECT * FROM tenk1 WHERE unique1 < 100 AND unique2 > 9000;
+EXPLAIN
+SELECT *
+FROM tenk1
+WHERE unique1 < 100
+  AND unique2 > 9000;
 /*
 
                                      QUERY PLAN
@@ -419,11 +544,17 @@ EXPLAIN SELECT * FROM tenk1 WHERE unique1 < 100 AND unique2 > 9000;
 1. BitmapAnd: 位图与（可以利用多个索引）
 */
 ```
-##### 例3. 
+
+##### 例3.
+
 ```sql
-EXPLAIN ANALYZE SELECT *
-FROM tenk1 t1, tenk2 t2
-WHERE t1.unique1 < 100 AND t1.unique2 = t2.unique2 ORDER BY t1.fivethous;
+EXPLAIN ANALYZE
+SELECT *
+FROM tenk1 t1,
+     tenk2 t2
+WHERE t1.unique1 < 100
+  AND t1.unique2 = t2.unique2
+ORDER BY t1.fivethous;
 /*
 
                                                                  QUERY PLAN
@@ -446,23 +577,31 @@ WHERE t1.unique1 < 100 AND t1.unique2 = t2.unique2 ORDER BY t1.fivethous;
 ```
 
 #### Append
+
 通常出现在分区表中
+
 ```sql
 -- 1. 建表
 drop table if exists tb4;
-create table tb4(
-    id      int primary key, 
-    data    int
-)partition by range (id);
+create table tb4
+(
+    id   int primary key,
+    data int
+) partition by range (id);
 create table tb4_0_100 partition of tb4 for values from (0) to (100);
 create table tb4_100_200 partition of tb4 for values from (100) to (200);
 create table tb4_200_300 partition of tb4 for values from (200) to (300);
 -- 2. 插入数据
-insert into tb4 select generate_series(1, 299), generate_series(1, 299);
+insert into tb4
+select generate_series(1, 299), generate_series(1, 299);
 -- 3. 查看建好的表
 \d+ tb4
 
-explain select * from tb4 where id > 90 and id < 110;
+explain
+select *
+from tb4
+where id > 90
+  and id < 110;
 /*
                                       QUERY PLAN                                      
 --------------------------------------------------------------------------------------
@@ -481,7 +620,11 @@ explain select * from tb4 where id > 90 and id < 110;
 -- 4. 手动触发数据的抽样统计， 用于计划器生成更准确的执行计划
 analyze;
 
-explain select * from tb4 where id = 90 or id = 110;
+explain
+select *
+from tb4
+where id = 90
+   or id = 110;
 
 /*
                            QUERY PLAN                            
@@ -495,10 +638,13 @@ explain select * from tb4 where id = 90 or id = 110;
 
 */
 ```
+
 #### 并行查询
 
 ```sql
-explain analyze select sum(first_visit_at) from vehicle_file;
+explain analyze
+select sum(first_visit_at)
+from vehicle_file;
 /*
                                                                       QUERY PLAN                                                                      
 ------------------------------------------------------------------------------------------------------------------------------------------------------
@@ -511,6 +657,8 @@ explain analyze select sum(first_visit_at) from vehicle_file;
  Planning Time: 4.114 ms
  Execution Time: 4446.448 ms
 (8 rows)
+                                                                      
+Time: 4559.394 ms (00:04.559)
 */
 
 -----------------名词解释----------------
@@ -520,18 +668,12 @@ explain analyze select sum(first_visit_at) from vehicle_file;
 3. Finalize Aggregate: 最终聚合
 4. Parrallel Seq Scan: 并行顺序扫描
 */
-
-Time: 4559.394 ms (00:04.559)
-
 ```
-
-
-
-
 
 #### 实例分析
 
 #### 参考资料
+
 - [PG 官方文档](https://www.postgresql.org/docs/12/using-explain.html)
 - PostgreSQL修炼之道：从小工到专家 (作者：唐成)
 - PostgreSQL即学即用 第3版 数据库 （瑞金娜 奥贝 等 著，丁奇鹏 译 ）
