@@ -498,7 +498,8 @@ where a.id < 10;
 
 ```sql
 explain select * from tb1 where id < 100;
-set enable_indexscan = false ;
+set enable_indexscan = false;
+show enable_indexscan;
 explain select * from tb1 where id < 100;
 /*
                                QUERY PLAN                               
@@ -593,6 +594,7 @@ explain analyze select * from tb1, tb5 where tb5.data < 100 and tb1.id = tb5.id 
 
 ```sql
 set enable_indexscan = true;
+show enable_indexscan;
 -- 1. 建表
 drop table if exists tb4;
 create table tb4
