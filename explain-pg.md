@@ -6,23 +6,23 @@
 
 - ubuntu 20.04.1
 - 安装数据库
-    ```bash
-    sudo apt install postgresql-12
-    ```
+  ```bash
+  sudo apt install postgresql-12
+  ```
 - 启动 psql 客户端
-    ```shell
-    sudo su postgres -c psql
-    ```
+  ```shell
+  sudo su postgres -c psql
+  ```
 - 数据库初始化
-    ```sql
-    drop database if exists mydb;
-    create database mydb;
-    \c mydb
-    ```
+  ```sql
+  drop database if exists mydb;
+  create database mydb;
+  \c mydb
+  ```
 
 #### 全表扫描
 
-##### 例1. 无索引情况下全表扫描
+##### 例 1. 无索引情况下全表扫描
 
 ```sql
 -- 1. 建表
@@ -46,7 +46,7 @@ select *
 from tb1
 where data < 8000;
 /*
-                    QUERY PLAN                       
+                    QUERY PLAN
 --------------------------------------------------------
 Seq Scan on tb1  (cost=0.00..170.00 rows=7999 width=8)
     Filter: (data < 8000)
@@ -69,7 +69,7 @@ Seq Scan on tb1  (cost=0.00..170.00 rows=7999 width=8)
 
 ```
 
-##### 例2. 有索引的情况下全表扫描
+##### 例 2. 有索引的情况下全表扫描
 
 ```sql
 explain
@@ -77,7 +77,7 @@ select *
 from tb1
 where id < 8000;
 /*
-                       QUERY PLAN                       
+                       QUERY PLAN
 --------------------------------------------------------
  Seq Scan on tb1  (cost=0.00..170.00 rows=7999 width=8)
    Filter: (id < 8000)
@@ -98,7 +98,7 @@ select *
 from tb1
 where id < 4000;
 /*
-                               QUERY PLAN                                
+                               QUERY PLAN
 -------------------------------------------------------------------------
  Index Scan using tb1_pkey on tb1  (cost=0.29..139.27 rows=3999 width=8)
    Index Cond: (id < 4000)
@@ -124,7 +124,7 @@ select id
 from tb1
 where id < 4000;
 /*
-                                  QUERY PLAN                                  
+                                  QUERY PLAN
 ------------------------------------------------------------------------------
  Index Only Scan using tb1_pkey on tb1  (cost=0.29..139.27 rows=3999 width=4)
    Index Cond: (id < 4000)
@@ -138,13 +138,13 @@ where id < 4000;
 */
 ```
 
-```postgresql
+```sql
 explain analyze
 select id
 from tb1
 where id < 4000;
 /*
-                                                        QUERY PLAN                                                         
+                                                        QUERY PLAN
 ---------------------------------------------------------------------------------------------------------------------------
  Index Only Scan using tb1_pkey on tb1  (cost=0.29..139.27 rows=3999 width=4) (actual time=0.055..1.620 rows=3999 loops=1)
    Index Cond: (id < 4000)
@@ -188,7 +188,7 @@ from tb2
 where id < 200
 order by id;
 /*
-                        QUERY PLAN                         
+                        QUERY PLAN
 -----------------------------------------------------------
  Sort  (cost=5.57..5.82 rows=100 width=8)
    Sort Key: id
@@ -212,7 +212,7 @@ from tb2
 where id < 100
 order by id;
 /*
-                                             QUERY PLAN                                              
+                                             QUERY PLAN
 -----------------------------------------------------------------------------------------------------
  Sort  (cost=5.53..5.78 rows=99 width=8) (actual time=0.103..0.125 rows=99 loops=1)
    Sort Key: id
@@ -227,7 +227,7 @@ order by id;
 
 -----------------名词解释----------------
 /*
-0. 机智的你发现这个执行计划里居然多了 actual xxx 的信息，没错，它就是真正的执行时间，这是因为我们在 explain 后边增加了 analyze 关键字，它会让后边的这个sql真正进行执行并记录每一步骤的执行时间，同时会有更丰富的输出信息 
+0. 机智的你发现这个执行计划里居然多了 actual xxx 的信息，没错，它就是真正的执行时间，这是因为我们在 explain 后边增加了 analyze 关键字，它会让后边的这个sql真正进行执行并记录每一步骤的执行时间，同时会有更丰富的输出信息
 （注意，当执行update/delete/insert 语句时，这会导致数据受到影响，此时可以考虑先开启一个事务，分析完后再进行回滚）
 1. Sort Method: 排序方法
 2. Memory: 内存使用
@@ -250,7 +250,7 @@ select sum(data)
 from tb1
 group by id;
 /*
-                          QUERY PLAN                           
+                          QUERY PLAN
 ---------------------------------------------------------------
  HashAggregate  (cost=195.00..295.00 rows=10000 width=12)
    Group Key: id
@@ -270,7 +270,7 @@ from tb1
 where id < 4000
 group by id;
 /*
-                                  QUERY PLAN                                   
+                                  QUERY PLAN
 -------------------------------------------------------------------------------
  GroupAggregate  (cost=0.29..199.25 rows=3999 width=12)
    Group Key: id
@@ -292,7 +292,7 @@ from tb1 a,
      tb2 b
 where a.data = b.data;
 /*
-                            QUERY PLAN                             
+                            QUERY PLAN
 -------------------------------------------------------------------
  Hash Join  (cost=3.25..186.75 rows=100 width=12)
    Hash Cond: (a.data = b.data)
@@ -323,7 +323,7 @@ from tb1 a,
 where a.data = b.data
   and a.id < 100;
 /*
-                                  QUERY PLAN                                  
+                                  QUERY PLAN
 ------------------------------------------------------------------------------
  Hash Join  (cost=3.54..13.65 rows=1 width=12)
    Hash Cond: (a.data = b.data)
@@ -345,7 +345,7 @@ from tb1 a,
 where a.data = b.data
   and a.id < 100;
 /*
-                                                       QUERY PLAN                                                        
+                                                       QUERY PLAN
 -------------------------------------------------------------------------------------------------------------------------
  Hash Join  (cost=3.54..13.65 rows=1 width=12) (actual time=0.126..0.230 rows=99 loops=1)
    Hash Cond: (a.data = b.data)
@@ -379,7 +379,7 @@ from tb1 a,
 where a.id = b.id
   and b.id < 10;
 /*
-                                    QUERY PLAN                                    
+                                    QUERY PLAN
 ----------------------------------------------------------------------------------
  Merge Join  (cost=2.66..6.21 rows=8 width=12)
    Merge Cond: (a.id = b.id)
@@ -428,7 +428,7 @@ select a.id, b.id, a.data
 from tb1 a,
      tb2 b;
 /*
-                            QUERY PLAN                             
+                            QUERY PLAN
 -------------------------------------------------------------------
  Nested Loop  (cost=0.00..12647.25 rows=1000000 width=12)
    ->  Seq Scan on tb1 a  (cost=0.00..145.00 rows=10000 width=8)
@@ -452,7 +452,7 @@ select a.id, b.id, a.data
 from tb1 a,
      tb2 b;
 /*
-                                                  QUERY PLAN                                                   
+                                                  QUERY PLAN
 ---------------------------------------------------------------------------------------------------------------
  Nested Loop  (cost=0.00..12647.25 rows=1000000 width=12) (actual time=0.050..132.123 rows=1000000 loops=1)
    ->  Seq Scan on tb1 a  (cost=0.00..145.00 rows=10000 width=8) (actual time=0.027..0.858 rows=10000 loops=1)
@@ -480,7 +480,7 @@ from tb1 a,
      tb2 b
 where a.id < 10;
 /*
-                                    QUERY PLAN                                    
+                                    QUERY PLAN
 ----------------------------------------------------------------------------------
  Nested Loop  (cost=0.29..21.71 rows=900 width=12)
    ->  Seq Scan on tb2 b  (cost=0.00..2.00 rows=100 width=4)
@@ -494,21 +494,21 @@ where a.id < 10;
 
 #### bitmap 扫描
 
-##### 例1.
+##### 例 1.
 
 ```sql
-EXPLAIN
-SELECT *
-FROM tenk1
-WHERE unique1 < 100;
+explain select * from tb1 where id < 100;
+set enable_indexscan = false ;
+explain select * from tb1 where id < 100;
 /*
+                               QUERY PLAN                               
+------------------------------------------------------------------------
+ Bitmap Heap Scan on tb1  (cost=5.05..51.29 rows=99 width=8)
+   Recheck Cond: (id < 100)
+   ->  Bitmap Index Scan on tb1_pkey  (cost=0.00..5.03 rows=99 width=0)
+         Index Cond: (id < 100)
+(4 rows)
 
-                                  QUERY PLAN
-------------------------------------------------------------------------------
- Bitmap Heap Scan on tenk1  (cost=5.07..229.20 rows=101 width=244)
-   Recheck Cond: (unique1 < 100)
-   ->  Bitmap Index Scan on tenk1_unique1  (cost=0.00..5.04 rows=101 width=0)
-         Index Cond: (unique1 < 100)
 */
 
 -----------------名词解释----------------
@@ -516,64 +516,75 @@ WHERE unique1 < 100;
 1. Bitmap: 位图 （优势是使用内存较小，而且对数据的随机读变为顺序读， 劣势是多一步形成位图的过程）
 2. Recheck: 复核条件（位图扫描记录的是页，所以需要复核条件）
 */
+
 ```
 
-##### 例2.
+
+##### 例 2.
 
 ```sql
-EXPLAIN
-SELECT *
-FROM tenk1
-WHERE unique1 < 100
-  AND unique2 > 9000;
-/*
+-- 1. 建表
+drop table if exists tb5;
+create table tb5
+(
+    id   int primary key,
+    data int
+);
+create index tb5_data_idx on tb5 using btree(data);
+-- 2. 插入 10k 数据
+insert into tb5
+select generate_series(1, 10000), generate_series(1, 10000);
+-- 3. 手动触发数据的抽样统计， 用于计划器生成更准确的执行计划
+analyze;
+-- 4. 查看建好的表
+\d+ tb5
 
-                                     QUERY PLAN
--------------------------------------------------------------------------------------
- Bitmap Heap Scan on tenk1  (cost=25.08..60.21 rows=10 width=244)
-   Recheck Cond: ((unique1 < 100) AND (unique2 > 9000))
-   ->  BitmapAnd  (cost=25.08..25.08 rows=10 width=0)
-         ->  Bitmap Index Scan on tenk1_unique1  (cost=0.00..5.04 rows=101 width=0)
-               Index Cond: (unique1 < 100)
-         ->  Bitmap Index Scan on tenk1_unique2  (cost=0.00..19.78 rows=999 width=0)
-               Index Cond: (unique2 > 9000)
+explain select * from tb5 where id < 100 and data < 50;
+/*
+                                    QUERY PLAN                                    
+----------------------------------------------------------------------------------
+ Bitmap Heap Scan on tb5  (cost=9.93..13.95 rows=1 width=8)
+   Recheck Cond: ((data < 50) AND (id < 100))
+   ->  BitmapAnd  (cost=9.93..9.93 rows=1 width=0)
+         ->  Bitmap Index Scan on tb5_data_idx  (cost=0.00..4.65 rows=49 width=0)
+               Index Cond: (data < 50)
+         ->  Bitmap Index Scan on tb5_pkey  (cost=0.00..5.03 rows=99 width=0)
+               Index Cond: (id < 100)
+(7 rows)
 */
 
 -----------------名词解释----------------
 /*
 1. BitmapAnd: 位图与（可以利用多个索引）
 */
+
 ```
 
-##### 例3.
+##### 例 3.
 
 ```sql
-EXPLAIN ANALYZE
-SELECT *
-FROM tenk1 t1,
-     tenk2 t2
-WHERE t1.unique1 < 100
-  AND t1.unique2 = t2.unique2
-ORDER BY t1.fivethous;
+explain analyze select * from tb1, tb5 where tb5.data < 100 and tb1.id = tb5.id order by tb1.data;
 /*
+                                                               QUERY PLAN                                                                
+-----------------------------------------------------------------------------------------------------------------------------------------
+ Sort  (cost=227.07..227.32 rows=99 width=16) (actual time=4.874..4.882 rows=99 loops=1)
+   Sort Key: tb1.data
+   Sort Method: quicksort  Memory: 29kB
+   ->  Hash Join  (cost=52.53..223.79 rows=99 width=16) (actual time=0.127..4.829 rows=99 loops=1)
+         Hash Cond: (tb1.id = tb5.id)
+         ->  Seq Scan on tb1  (cost=0.00..145.00 rows=10000 width=8) (actual time=0.019..2.257 rows=10000 loops=1)
+         ->  Hash  (cost=51.29..51.29 rows=99 width=8) (actual time=0.091..0.092 rows=99 loops=1)
+               Buckets: 1024  Batches: 1  Memory Usage: 12kB
+               ->  Bitmap Heap Scan on tb5  (cost=5.05..51.29 rows=99 width=8) (actual time=0.032..0.052 rows=99 loops=1)
+                     Recheck Cond: (data < 100)
+                     Heap Blocks: exact=1
+                     ->  Bitmap Index Scan on tb5_data_idx  (cost=0.00..5.03 rows=99 width=0) (actual time=0.017..0.017 rows=99 loops=1)
+                           Index Cond: (data < 100)
+ Planning Time: 0.558 ms
+ Execution Time: 4.938 ms
+(15 rows)
+*/
 
-                                                                 QUERY PLAN
---------------------------------------------------------------------------------------------------------------------------------------------
- Sort  (cost=717.34..717.59 rows=101 width=488) (actual time=7.761..7.774 rows=100 loops=1)
-   Sort Key: t1.fivethous
-   Sort Method: quicksort  Memory: 77kB
-   ->  Hash Join  (cost=230.47..713.98 rows=101 width=488) (actual time=0.711..7.427 rows=100 loops=1)
-         Hash Cond: (t2.unique2 = t1.unique2)
-         ->  Seq Scan on tenk2 t2  (cost=0.00..445.00 rows=10000 width=244) (actual time=0.007..2.583 rows=10000 loops=1)
-         ->  Hash  (cost=229.20..229.20 rows=101 width=244) (actual time=0.659..0.659 rows=100 loops=1)
-               Buckets: 1024  Batches: 1  Memory Usage: 28kB
-               ->  Bitmap Heap Scan on tenk1 t1  (cost=5.07..229.20 rows=101 width=244) (actual time=0.080..0.526 rows=100 loops=1)
-                     Recheck Cond: (unique1 < 100)
-                     ->  Bitmap Index Scan on tenk1_unique1  (cost=0.00..5.04 rows=101 width=0) (actual time=0.049..0.049 rows=100 loops=1)
-                           Index Cond: (unique1 < 100)
- Planning time: 0.194 ms
- Execution time: 8.008 ms
- */
 ```
 
 #### Append
@@ -581,6 +592,7 @@ ORDER BY t1.fivethous;
 通常出现在分区表中
 
 ```sql
+set enable_indexscan = true;
 -- 1. 建表
 drop table if exists tb4;
 create table tb4
@@ -603,7 +615,7 @@ from tb4
 where id > 90
   and id < 110;
 /*
-                                      QUERY PLAN                                      
+                                      QUERY PLAN
 --------------------------------------------------------------------------------------
  Append  (cost=4.27..30.04 rows=22 width=8)
    ->  Bitmap Heap Scan on tb4_0_100  (cost=4.27..14.97 rows=11 width=8)
@@ -627,7 +639,7 @@ where id = 90
    or id = 110;
 
 /*
-                           QUERY PLAN                            
+                           QUERY PLAN
 -----------------------------------------------------------------
  Append  (cost=0.00..5.00 rows=4 width=8)
    ->  Seq Scan on tb4_0_100  (cost=0.00..2.48 rows=2 width=8)
@@ -642,23 +654,36 @@ where id = 90
 #### 并行查询
 
 ```sql
-explain analyze
-select sum(first_visit_at)
-from vehicle_file;
+-- 1. 建表
+drop table if exists tb6;
+create table tb6
+(
+    id   int primary key,
+    data int
+);
+-- 2. 插入 10m 数据
+insert into tb6
+select generate_series(1, 10000000), generate_series(1, 10000000);
+-- 3. 手动触发数据的抽样统计， 用于计划器生成更准确的执行计划
+analyze;
+-- 4. 查看建好的表
+\d+ tb6
+
+explain analyze                                     
+select sum(data)
+from tb6;
 /*
-                                                                      QUERY PLAN                                                                      
-------------------------------------------------------------------------------------------------------------------------------------------------------
- Finalize Aggregate  (cost=2474093.17..2474093.18 rows=1 width=32) (actual time=4213.735..4213.735 rows=1 loops=1)
-   ->  Gather  (cost=2474092.31..2474093.12 rows=8 width=32) (actual time=4213.609..4446.362 rows=3 loops=1)
-         Workers Planned: 8
+                                                                QUERY PLAN                                                                
+------------------------------------------------------------------------------------------------------------------------------------------
+ Finalize Aggregate  (cost=97331.43..97331.44 rows=1 width=8) (actual time=429.057..450.167 rows=1 loops=1)
+   ->  Gather  (cost=97331.21..97331.42 rows=2 width=8) (actual time=428.950..450.159 rows=3 loops=1)
+         Workers Planned: 2
          Workers Launched: 2
-         ->  Partial Aggregate  (cost=2473092.31..2473092.32 rows=1 width=32) (actual time=4207.603..4207.604 rows=1 loops=3)
-               ->  Parallel Seq Scan on vehicle_file  (cost=0.00..2465507.25 rows=3034025 width=8) (actual time=0.016..3439.783 rows=8090733 loops=3)
- Planning Time: 4.114 ms
- Execution Time: 4446.448 ms
+         ->  Partial Aggregate  (cost=96331.21..96331.22 rows=1 width=8) (actual time=407.071..407.078 rows=1 loops=3)
+               ->  Parallel Seq Scan on tb6  (cost=0.00..85914.57 rows=4166657 width=4) (actual time=0.036..236.370 rows=3333333 loops=3)
+ Planning Time: 0.273 ms
+ Execution Time: 450.219 ms
 (8 rows)
-                                                                      
-Time: 4559.394 ms (00:04.559)
 */
 
 -----------------名词解释----------------
@@ -668,6 +693,7 @@ Time: 4559.394 ms (00:04.559)
 3. Finalize Aggregate: 最终聚合
 4. Parrallel Seq Scan: 并行顺序扫描
 */
+
 ```
 
 #### 实例分析
@@ -675,6 +701,6 @@ Time: 4559.394 ms (00:04.559)
 #### 参考资料
 
 - [PG 官方文档](https://www.postgresql.org/docs/12/using-explain.html)
-- PostgreSQL修炼之道：从小工到专家 (作者：唐成)
-- PostgreSQL即学即用 第3版 数据库 （瑞金娜 奥贝 等 著，丁奇鹏 译 ）
-- PostgreSQL指南内幕探索 (作者:(日)Hironobu Suzuki(铃木启修))
+- PostgreSQL 修炼之道：从小工到专家 (作者：唐成)
+- PostgreSQL 即学即用 第 3 版 数据库 （瑞金娜 奥贝 等 著，丁奇鹏 译 ）
+- PostgreSQL 指南内幕探索 (作者:(日)Hironobu Suzuki(铃木启修))
