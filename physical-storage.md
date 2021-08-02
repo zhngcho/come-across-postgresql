@@ -296,9 +296,24 @@ select * from pg_freespance('tb1');
 
 #### VM
 
+```
+ pg_visibility
+```
+
+
+
 
 
 #### b+ tree 索引
+
+
+
+#### MVCC
+
+```
+```
+
+
 
 
 
